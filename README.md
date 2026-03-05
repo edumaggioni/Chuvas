@@ -1,12 +1,4 @@
-<<<<<<< HEAD
-Abaixo está um **README.md em nível profissional**, no padrão usado em projetos grandes do GitHub, com **badges, estrutura clara, seções técnicas, arquitetura e exemplos de uso**. Basta criar o arquivo **`README.md`** na raiz do repositório e colar.
-=======
-Vou montar um **README.md no padrão clássico do GitHub**, organizado, com badges, seções claras e pronto para subir no repositório. Usei as informações do seu documento do **Sistema Impacto Climático** .
-
-Você pode simplesmente criar um arquivo **`README.md`** na raiz do projeto e colar o conteúdo abaixo.
->>>>>>> 63316643db8d0466212af000352573f4946392d5
-
----
+Site: https://cemcchuvas.netlify.app/
 
 # 🌧️ Sistema Impacto Climático
 
