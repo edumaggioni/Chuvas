@@ -1,8 +1,4 @@
-Vou montar um **README.md no padrão clássico do GitHub**, organizado, com badges, seções claras e pronto para subir no repositório. Usei as informações do seu documento do **Sistema Impacto Climático** .
-
-Você pode simplesmente criar um arquivo **`README.md`** na raiz do projeto e colar o conteúdo abaixo.
-
----
+Site: https://cemcchuvas.netlify.app/
 
 # 🌧️ Sistema Impacto Climático
 
