@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema Impacto Climático</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#07090f;--bg2:#0d1120;--card:#111827;--card2:#151e30;
+  --accent:#00d4ff;--accent2:#ff6b35;--purple:#7c3aed;
+  --danger:#ff4757;--warn:#ffa502;--ok:#2ed573;--teal:#00cec9;
+  --text:#e8eaf6;--muted:#7986a8;--border:rgba(0,212,255,0.12);
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;min-height:100vh;overflow-x:hidden}
+
+/* ── Splash ── */
+#splash{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse 60% 50% at 20% 30%,rgba(0,212,255,.07) 0%,transparent 60%),
+             radial-gradient(ellipse 60% 50% at 80% 70%,rgba(124,58,237,.08) 0%,transparent 60%),
+             var(--bg);
+  padding:40px 20px;text-align:center;transition:opacity .5s,transform .5s}
+#splash.out{opacity:0;transform:scale(1.04);pointer-events:none}
+.sp-badge{font-size:.6rem;letter-spacing:3px;text-transform:uppercase;color:var(--accent);
+  border:1px solid rgba(0,212,255,.35);border-radius:20px;padding:4px 16px;margin-bottom:28px;display:inline-block;
+  animation:fadeUp .6s ease both}
+.sp-icon{font-size:5.5rem;line-height:1;margin-bottom:18px;filter:drop-shadow(0 0 32px rgba(0,212,255,.5));
+  animation:fadeUp .6s .1s ease both}
+.sp-title{font-family:'Syne',sans-serif;font-size:clamp(2rem,5vw,3.4rem);font-weight:800;color:#fff;
+  letter-spacing:-1.5px;line-height:1.05;margin-bottom:10px;animation:fadeUp .6s .18s ease both}
+.sp-title span{color:var(--accent)}
+.sp-sub{font-size:.95rem;color:var(--muted);max-width:520px;line-height:1.65;margin-bottom:44px;
+  animation:fadeUp .6s .26s ease both}
+.sp-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:640px;width:100%;margin-bottom:44px;
+  animation:fadeUp .6s .34s ease both}
+.sp-stat{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:14px;padding:20px 14px}
+.sp-stat-v{font-family:'Syne',sans-serif;font-size:1.85rem;font-weight:800;color:var(--accent);line-height:1;margin-bottom:5px}
+.sp-stat-l{font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+.sp-feats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;max-width:640px;width:100%;margin-bottom:44px;
+  animation:fadeUp .6s .42s ease both}
+.sp-feat{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:14px 10px}
+.sp-feat-i{font-size:1.35rem;margin-bottom:5px}
+.sp-feat-t{font-size:.65rem;color:var(--muted);line-height:1.4}
+.sp-divider{width:56px;height:2px;background:linear-gradient(90deg,var(--accent),var(--purple));border-radius:2px;margin:0 auto 44px;
+  animation:fadeUp .6s .3s ease both}
+.sp-btn{background:linear-gradient(135deg,var(--accent),var(--purple));color:#fff;font-family:'Syne',sans-serif;font-weight:700;
+  font-size:.95rem;border:none;border-radius:40px;padding:14px 48px;cursor:pointer;letter-spacing:.5px;
+  box-shadow:0 0 32px rgba(0,212,255,.25);transition:transform .2s,box-shadow .2s;
+  animation:fadeUp .6s .5s ease both}
+.sp-btn:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 0 48px rgba(0,212,255,.4)}
+.sp-foot{font-size:.62rem;color:#3d4f6a;margin-top:18px;letter-spacing:.5px;animation:fadeUp .6s .56s ease both}
+
+/* ── App shell ── */
+#app{display:none;min-height:100vh}
+
+/* ── Sidebar ── */
+#sidebar{position:fixed;left:0;top:0;bottom:0;width:220px;background:var(--bg2);
+  border-right:1px solid var(--border);z-index:100;display:flex;flex-direction:column;overflow-y:auto;padding:20px 14px}
+.sb-brand{text-align:center;padding:12px 0 24px}
+.sb-brand-icon{font-size:2rem;filter:drop-shadow(0 0 12px rgba(0,212,255,.5))}
+.sb-brand-name{font-family:'Syne',sans-serif;font-weight:800;color:var(--accent);font-size:1rem;letter-spacing:-.4px}
+.sb-brand-sub{font-size:.58rem;color:var(--muted);letter-spacing:2px;text-transform:uppercase}
+.sb-section{font-size:.6rem;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin:16px 0 8px 4px}
+.sb-label{font-size:.7rem;color:var(--muted);margin-bottom:4px;margin-top:10px;display:block}
+select,input[type=range]{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:8px;
+  color:var(--text);padding:7px 10px;font-size:.78rem;font-family:'DM Sans',sans-serif;outline:none;cursor:pointer}
+select:focus{border-color:var(--accent)}
+.sb-slider-val{font-size:.7rem;color:var(--accent);text-align:right;margin-top:3px}
+input[type=range]{padding:4px 2px;accent-color:var(--accent)}
+.sb-check{display:flex;align-items:center;gap:8px;font-size:.75rem;color:var(--text);margin-top:10px;cursor:pointer}
+input[type=checkbox]{accent-color:var(--accent);width:13px;height:13px}
+.sb-sep{border:none;border-top:1px solid var(--border);margin:16px 0}
+.sb-info{font-size:.62rem;color:var(--muted);line-height:1.7}
+.sb-info b{color:var(--accent)}
+.sb-nav{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+.sb-nav-btn{background:none;border:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:.73rem;
+  text-align:left;padding:7px 10px;border-radius:7px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all .15s}
+.sb-nav-btn:hover,.sb-nav-btn.active{background:rgba(0,212,255,.08);color:var(--accent)}
+
+/* ── Main content ── */
+#main{margin-left:220px;padding:24px;min-height:100vh}
+
+/* ── Section header ── */
+.sec-title{font-size:.6rem;text-transform:uppercase;letter-spacing:2.5px;color:var(--accent);
+  font-weight:700;padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:18px}
+
+/* ── Sys header ── */
+.sys-header{background:linear-gradient(135deg,var(--bg2) 0%,var(--card2) 50%,var(--bg2) 100%);
+  border:1px solid var(--border);border-radius:14px;padding:22px 28px;margin-bottom:22px;
+  position:relative;overflow:hidden}
+.sys-header::before{content:'';position:absolute;top:-50px;right:-50px;width:200px;height:200px;
+  background:radial-gradient(circle,rgba(0,212,255,.07) 0%,transparent 70%);pointer-events:none}
+.sys-header h1{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;color:var(--accent);letter-spacing:-.5px}
+.sys-header p{color:var(--muted);font-size:.78rem;margin-top:3px}
+.sys-header p b{color:var(--accent)}
+
+/* ── KPI grid ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:22px}
+.kpi-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 12px;
+  position:relative;overflow:hidden}
+.kpi-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;border-radius:0 0 12px 12px}
+.kpi-card.blue::after{background:var(--accent)}
+.kpi-card.orange::after{background:var(--accent2)}
+.kpi-card.red::after{background:var(--danger)}
+.kpi-card.yellow::after{background:var(--warn)}
+.kpi-card.purple::after{background:var(--purple)}
+.kpi-card.teal::after{background:var(--teal)}
+.kpi-card.green::after{background:var(--ok)}
+.kpi-label{font-size:.58rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px}
+.kpi-value{font-family:'Syne',sans-serif;font-size:1.45rem;font-weight:700;line-height:1}
+.kpi-unit{font-size:.7rem;color:var(--muted);font-family:'DM Sans',sans-serif}
+.kpi-icon{position:absolute;top:12px;right:10px;font-size:1.1rem;opacity:.5}
+
+/* ── Chart grid ── */
+.chart-row{display:grid;gap:16px;margin-bottom:16px}
+.chart-row.two{grid-template-columns:1fr 1fr}
+.chart-row.three{grid-template-columns:1.2fr .8fr 1fr}
+.chart-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px}
+.chart-box canvas{max-height:300px}
+
+/* ── Ranking ── */
+.rank-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px}
+.rank-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px}
+.rank-table{width:100%;border-collapse:collapse}
+.rank-table th{font-size:.58rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);
+  padding:6px 8px;border-bottom:1px solid var(--border);text-align:left}
+.rank-table td{padding:7px 8px;border-bottom:1px solid rgba(255,255,255,.03);font-size:.78rem}
+.rank-table tr:last-child td{border-bottom:none}
+.rank-num{font-family:'Syne',sans-serif;font-weight:700;color:var(--accent);font-size:.78rem}
+.rank-bar-wrap{height:5px;background:var(--card2);border-radius:3px;overflow:hidden;width:70px}
+.rank-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent),var(--purple))}
+
+/* ── Map ── */
+#mapDiv{width:100%;height:440px;border-radius:12px;background:var(--card2);border:1px solid var(--border);
+  position:relative;overflow:hidden}
+#mapSvg{width:100%;height:100%}
+.map-dot{cursor:pointer;transition:r .2s}
+.map-dot:hover{opacity:1!important}
+.map-tooltip{position:absolute;background:rgba(13,17,32,.96);border:1px solid var(--border);border-radius:10px;
+  padding:10px 14px;pointer-events:none;opacity:0;transition:opacity .15s;font-size:.75rem;z-index:10;
+  max-width:200px;line-height:1.6}
+.map-tooltip b{color:var(--accent)}
+
+/* ── Table extremos ── */
+.tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
+table.data-tbl{width:100%;border-collapse:collapse}
+table.data-tbl th{background:var(--card2);font-size:.6rem;text-transform:uppercase;letter-spacing:1px;
+  color:var(--muted);padding:9px 12px;text-align:left;white-space:nowrap}
+table.data-tbl td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.04);font-size:.77rem}
+table.data-tbl tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+table.data-tbl tr:last-child td{border-bottom:none}
+
+/* ── Sections ── */
+.page-section{margin-bottom:28px}
+
+/* ── Loading overlay ── */
+#loading{position:fixed;inset:0;z-index:9998;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;background:var(--bg);gap:16px}
+#loading.hidden{display:none}
+.ld-spinner{width:40px;height:40px;border:3px solid rgba(0,212,255,.2);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .8s linear infinite}
+.ld-txt{font-size:.8rem;color:var(--muted)}
+
+/* ── Corr box ── */
+.corr-box{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;margin-top:12px}
+.corr-val{font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;color:var(--accent)}
+.corr-lbl{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.corr-desc{font-size:.72rem;color:var(--muted);margin-top:4px}
+
+/* ── Animations ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.fade-up{animation:fadeUp .5s ease both}
+
+/* ── Responsive ── */
+@media(max-width:900px){
+  #sidebar{width:100%;height:auto;position:relative;flex-direction:row;flex-wrap:wrap;border-right:none;border-bottom:1px solid var(--border)}
+  #main{margin-left:0}
+  .kpi-grid{grid-template-columns:repeat(4,1fr)}
+  .chart-row.three,.chart-row.two,.rank-grid{grid-template-columns:1fr}
+  .sp-stats,.sp-feats{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<!-- Loading -->
+<div id="loading">
+  <div class="ld-spinner"></div>
+  <div class="ld-txt">Carregando dados climáticos...</div>
+</div>
+
+<!-- Splash -->
+<div id="splash">
+  <div class="sp-badge">🛰️ &nbsp; Sistema de Monitoramento Climático</div>
+  <div class="sp-icon">🌧️</div>
+  <div class="sp-title">Impacto <span>Climático</span></div>
+  <div class="sp-sub">Dashboard analítico de precipitação e desastres naturais no Brasil.<br>Dados históricos de 2010–2025 · 30 municípios monitorados.</div>
+  <div class="sp-stats" id="splashStats">
+    <div class="sp-stat"><div class="sp-stat-v" id="sp-reg">—</div><div class="sp-stat-l">Registros de Chuva</div></div>
+    <div class="sp-stat"><div class="sp-stat-v" id="sp-dis">—</div><div class="sp-stat-l">Eventos de Desastre</div></div>
+    <div class="sp-stat"><div class="sp-stat-v" id="sp-aff">—</div><div class="sp-stat-l">Pessoas Afetadas</div></div>
+  </div>
+  <div class="sp-divider"></div>
+  <div class="sp-feats">
+    <div class="sp-feat"><div class="sp-feat-i">📊</div><div class="sp-feat-t">KPIs &amp; Gráficos interativos</div></div>
+    <div class="sp-feat"><div class="sp-feat-i">🗺️</div><div class="sp-feat-t">Mapa georreferenciado</div></div>
+    <div class="sp-feat"><div class="sp-feat-i">📈</div><div class="sp-feat-t">Tendências &amp; Correlações</div></div>
+    <div class="sp-feat"><div class="sp-feat-i">🏆</div><div class="sp-feat-t">Rankings por município</div></div>
+  </div>
+  <button class="sp-btn" onclick="enterDashboard()">▶ &nbsp; Acessar o Dashboard</button>
+  <div class="sp-foot">INMET · S2ID · CEMADEN &nbsp;|&nbsp; Dados representativos 2010–2025</div>
+</div>
+
+<!-- App -->
+<div id="app">
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <div class="sb-brand">
+      <div class="sb-brand-icon">🌧️</div>
+      <div class="sb-brand-name">Impacto Climático</div>
+      <div class="sb-brand-sub">Sistema de Análise</div>
+    </div>
+
+    <div class="sb-section">Navegação</div>
+    <div class="sb-nav">
+      <button class="sb-nav-btn active" onclick="scrollTo('sec-kpi')">📊 KPIs</button>
+      <button class="sb-nav-btn" onclick="scrollTo('sec-charts')">📈 Gráficos</button>
+      <button class="sb-nav-btn" onclick="scrollTo('sec-map')">🗺️ Mapa</button>
+      <button class="sb-nav-btn" onclick="scrollTo('sec-rank')">🏆 Rankings</button>
+      <button class="sb-nav-btn" onclick="scrollTo('sec-trend')">📉 Tendências</button>
+      <button class="sb-nav-btn" onclick="scrollTo('sec-extremos')">🚨 Extremos</button>
+    </div>
+
+    <hr class="sb-sep">
+    <div class="sb-section">Filtros</div>
+
+    <label class="sb-label">Ano</label>
+    <select id="selAno" onchange="aplicarFiltros()"></select>
+
+    <label class="sb-label">Mês</label>
+    <select id="selMes" onchange="aplicarFiltros()">
+      <option value="0">Todos os meses</option>
+      <option value="1">Janeiro</option><option value="2">Fevereiro</option>
+      <option value="3">Março</option><option value="4">Abril</option>
+      <option value="5">Maio</option><option value="6">Junho</option>
+      <option value="7">Julho</option><option value="8">Agosto</option>
+      <option value="9">Setembro</option><option value="10">Outubro</option>
+      <option value="11">Novembro</option><option value="12">Dezembro</option>
+    </select>
+
+    <label class="sb-label">Top N cidades: <span id="topNVal" class="sb-slider-val">10</span></label>
+    <input type="range" id="sliderN" min="5" max="30" value="10" oninput="document.getElementById('topNVal').textContent=this.value;renderRankings()">
+
+    <label class="sb-check">
+      <input type="checkbox" id="chkMapa" checked onchange="renderMap()"> Exibir mapa
+    </label>
+
+    <hr class="sb-sep">
+    <div class="sb-info">
+      <b>Fontes</b><br>
+      • INMET — Estações meteorológicas<br>
+      • S2ID — Desastres naturais<br>
+      • CEMADEN — Alertas climáticos<br><br>
+      <i>Dados 2010–2025</i>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div id="main">
+
+    <!-- Header -->
+    <div class="sys-header">
+      <h1>🌧️ Sistema Impacto Climático</h1>
+      <p id="periodoLabel">Análise de precipitação e desastres naturais · Brasil · <b>Carregando...</b></p>
+    </div>
+
+    <!-- KPIs -->
+    <div id="sec-kpi" class="page-section">
+      <div class="sec-title">📊 Indicadores do Período</div>
+      <div class="kpi-grid">
+        <div class="kpi-card blue"><div class="kpi-icon">🌧️</div><div class="kpi-label">Chuva Acumulada</div><div class="kpi-value" id="kpi-chuva">—</div><div class="kpi-unit">mm</div></div>
+        <div class="kpi-card orange"><div class="kpi-icon">⚠️</div><div class="kpi-label">Desastres</div><div class="kpi-value" id="kpi-dis">—</div></div>
+        <div class="kpi-card red"><div class="kpi-icon">💀</div><div class="kpi-label">Óbitos</div><div class="kpi-value" id="kpi-mort">—</div></div>
+        <div class="kpi-card yellow"><div class="kpi-icon">🚑</div><div class="kpi-label">Feridos</div><div class="kpi-value" id="kpi-fer">—</div></div>
+        <div class="kpi-card purple"><div class="kpi-icon">🏠</div><div class="kpi-label">Desabrigados</div><div class="kpi-value" id="kpi-desab">—</div></div>
+        <div class="kpi-card teal"><div class="kpi-icon">🚶</div><div class="kpi-label">Desalojados</div><div class="kpi-value" id="kpi-desal">—</div></div>
+        <div class="kpi-card green"><div class="kpi-icon">👥</div><div class="kpi-label">Afetados</div><div class="kpi-value" id="kpi-afet">—</div></div>
+      </div>
+    </div>
+
+    <!-- Charts row 1 -->
+    <div id="sec-charts" class="page-section">
+      <div class="sec-title">📈 Análise do Período</div>
+      <div class="chart-row two">
+        <div class="chart-box">
+          <div class="sec-title">📊 Top Municípios por Chuva</div>
+          <canvas id="chartBar"></canvas>
+        </div>
+        <div class="chart-box">
+          <div class="sec-title">📈 Evolução Temporal da Chuva</div>
+          <canvas id="chartLine"></canvas>
+        </div>
+      </div>
+      <div class="chart-row three">
+        <div class="chart-box">
+          <div class="sec-title">🔗 Correlação Chuva × Desastres</div>
+          <canvas id="chartScatter"></canvas>
+          <div class="corr-box">
+            <div class="corr-val" id="corrVal">—</div>
+            <div class="corr-lbl">Coeficiente de Pearson</div>
+            <div class="corr-desc" id="corrDesc">chuva × desastres por município</div>
+          </div>
+        </div>
+        <div class="chart-box">
+          <div class="sec-title">🌀 Tipos de Desastre</div>
+          <canvas id="chartDoughnut"></canvas>
+        </div>
+        <div class="chart-box">
+          <div class="sec-title">📅 Chuva Trimestral Histórica</div>
+          <canvas id="chartTrim"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Map -->
+    <div id="sec-map" class="page-section">
+      <div class="sec-title">🗺️ Mapa Interativo de Eventos</div>
+      <div id="mapDiv">
+        <div class="map-tooltip" id="mapTip"></div>
+        <canvas id="mapCanvas" style="width:100%;height:100%"></canvas>
+      </div>
+    </div>
+
+    <!-- Rankings -->
+    <div id="sec-rank" class="page-section">
+      <div class="sec-title">🏆 Rankings</div>
+      <div class="rank-grid">
+        <div class="rank-box">
+          <div class="sec-title">🌧️ Mais Chuva (mm)</div>
+          <table class="rank-table"><thead><tr><th>#</th><th>Município</th><th>Total</th><th style="width:80px">Bar</th></tr></thead>
+          <tbody id="rankChuva"></tbody></table>
+        </div>
+        <div class="rank-box">
+          <div class="sec-title">⚠️ Mais Desastres</div>
+          <table class="rank-table"><thead><tr><th>#</th><th>Município</th><th>Total</th><th style="width:80px">Bar</th></tr></thead>
+          <tbody id="rankDes"></tbody></table>
+        </div>
+        <div class="rank-box">
+          <div class="sec-title">👥 Mais Pessoas Afetadas</div>
+          <table class="rank-table"><thead><tr><th>#</th><th>Município</th><th>Total</th><th style="width:80px">Bar</th></tr></thead>
+          <tbody id="rankAfet"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Trends -->
+    <div id="sec-trend" class="page-section">
+      <div class="sec-title">📉 Tendência Histórica</div>
+      <div class="chart-row two">
+        <div class="chart-box">
+          <div class="sec-title">📊 Chuva Anual × Desastres</div>
+          <canvas id="chartTend"></canvas>
+        </div>
+        <div class="chart-box">
+          <div class="sec-title">👥 Impacto Humano Anual</div>
+          <canvas id="chartImpacto"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Extremos -->
+    <div id="sec-extremos" class="page-section">
+      <div class="sec-title">🚨 Eventos Climáticos Extremos</div>
+      <div class="tbl-wrap">
+        <table class="data-tbl">
+          <thead><tr><th>Data</th><th>Município</th><th>UF</th><th>Tipo</th><th>Chuva (mm)</th><th>Mortos</th><th>Desabrigados</th><th>Afetados</th></tr></thead>
+          <tbody id="tblExtremos"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="text-align:center;padding:32px 0 16px;color:#3d4f6a;font-size:.65rem;border-top:1px solid var(--border);margin-top:20px">
+      <b style="color:var(--accent)">Sistema Impacto Climático</b> · Precipitação e Desastres Naturais · Brasil 2010–2025<br>
+      Dados representativos baseados em padrões climatológicos reais (INMET / S2ID / CEMADEN)
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// DADOS EMBUTIDOS
+// ═══════════════════════════════════════════════════════════════════
+const DB = {"totais":{"registros":175320,"desastres":825,"mortos":2413,"feridos":9522,"desabrigados":165484,"desalojados":561163,"afetados":2968919,"chuva_total_mm":1439417.5,"anos":[2010,2011,2012,2013,2014,2015,2016,2017,2018,2019,2020,2021,2022,2023,2024,2025],"municipios":["Angra dos Reis","Belo Horizonte","Belém","Blumenau","Boa Vista","Brasília","Campo Grande","Cuiabá","Curitiba","Florianópolis","Fortaleza","Goiânia","Joinville","Macapá","Maceió","Manaus","Natal","Nova Friburgo","Petrópolis","Porto Alegre","Porto Velho","Recife","Rio Branco","Rio de Janeiro","Salvador","São Luís","São Paulo","Teresina","Teresópolis","Vitória"]},"anomes":[{"ano":2010,"mes":1,"chuva":11721.3,"n":8,"mortos":6,"afetados":2300},{"ano":2010,"mes":2,"chuva":10743.3,"n":6,"mortos":5,"afetados":2541},{"ano":2010,"mes":3,"chuva":13154.3,"n":12,"mortos":15,"afetados":7312},{"ano":2010,"mes":4,"chuva":7272.3,"n":5,"mortos":13,"afetados":2757},{"ano":2010,"mes":5,"chuva":5474.8,"n":1,"mortos":3,"afetados":621},{"ano":2010,"mes":6,"chuva":4087.4,"n":1,"mortos":0,"afetados":206},{"ano":2010,"mes":7,"chuva":4843.3,"n":2,"mortos":1,"afetados":864},{"ano":2010,"mes":8,"chuva":3909.3,"n":1,"mortos":1,"afetados":284},{"ano":2010,"mes":9,"chuva":3235.9,"n":1,"mortos":0,"afetados":328},{"ano":2010,"mes":10,"chuva":4186.1,"n":3,"mortos":3,"afetados":603},{"ano":2010,"mes":11,"chuva":8513.9,"n":3,"mortos":8,"afetados":1157},{"ano":2010,"mes":12,"chuva":12436.8,"n":11,"mortos":14,"afetados":4788},{"ano":2011,"mes":1,"chuva":11670.7,"n":7,"mortos":814,"afetados":141474},{"ano":2011,"mes":2,"chuva":13064.4,"n":10,"mortos":16,"afetados":5195},{"ano":2011,"mes":3,"chuva":12647.5,"n":7,"mortos":17,"afetados":5142},{"ano":2011,"mes":4,"chuva":7203.5,"n":4,"mortos":5,"afetados":1584},{"ano":2011,"mes":5,"chuva":5377.3,"n":2,"mortos":1,"afetados":775},{"ano":2011,"mes":6,"chuva":4769.0,"n":4,"mortos":4,"afetados":1147},{"ano":2011,"mes":7,"chuva":4637.6,"n":1,"mortos":1,"afetados":355},{"ano":2011,"mes":8,"chuva":3460.1,"n":0,"mortos":0,"afetados":0},{"ano":2011,"mes":9,"chuva":3168.2,"n":1,"mortos":1,"afetados":393},{"ano":2011,"mes":10,"chuva":4238.9,"n":1,"mortos":1,"afetados":146},{"ano":2011,"mes":11,"chuva":9566.0,"n":3,"mortos":1,"afetados":665},{"ano":2011,"mes":12,"chuva":9593.7,"n":3,"mortos":2,"afetados":857},{"ano":2012,"mes":1,"chuva":13717.2,"n":11,"mortos":15,"afetados":6062},{"ano":2012,"mes":2,"chuva":11538.6,"n":8,"mortos":11,"afetados":4714},{"ano":2012,"mes":3,"chuva":10870.6,"n":7,"mortos":4,"afetados":2666},{"ano":2012,"mes":4,"chuva":6853.0,"n":3,"mortos":5,"afetados":1005},{"ano":2012,"mes":5,"chuva":5568.4,"n":3,"mortos":3,"afetados":802},{"ano":2012,"mes":6,"chuva":4406.1,"n":2,"mortos":1,"afetados":975},{"ano":2012,"mes":7,"chuva":4947.0,"n":1,"mortos":1,"afetados":869},{"ano":2012,"mes":8,"chuva":3913.5,"n":1,"mortos":1,"afetados":420},{"ano":2012,"mes":9,"chuva":2857.6,"n":1,"mortos":0,"afetados":161},{"ano":2012,"mes":10,"chuva":3947.4,"n":1,"mortos":0,"afetados":145},{"ano":2012,"mes":11,"chuva":10829.9,"n":6,"mortos":16,"afetados":3620},{"ano":2012,"mes":12,"chuva":10856.6,"n":5,"mortos":2,"afetados":2709},{"ano":2013,"mes":1,"chuva":10693.9,"n":4,"mortos":5,"afetados":1275},{"ano":2013,"mes":2,"chuva":11640.5,"n":8,"mortos":9,"afetados":3280},{"ano":2013,"mes":3,"chuva":11448.9,"n":10,"mortos":15,"afetados":2769},{"ano":2013,"mes":4,"chuva":6566.8,"n":1,"mortos":1,"afetados":447},{"ano":2013,"mes":5,"chuva":6042.1,"n":2,"mortos":3,"afetados":1837},{"ano":2013,"mes":6,"chuva":5257.1,"n":2,"mortos":3,"afetados":1212},{"ano":2013,"mes":7,"chuva":4385.9,"n":1,"mortos":0,"afetados":141},{"ano":2013,"mes":8,"chuva":3438.2,"n":1,"mortos":1,"afetados":363},{"ano":2013,"mes":9,"chuva":2723.4,"n":1,"mortos":2,"afetados":217},{"ano":2013,"mes":10,"chuva":4241.2,"n":2,"mortos":1,"afetados":745},{"ano":2013,"mes":11,"chuva":11127.6,"n":9,"mortos":17,"afetados":3589},{"ano":2013,"mes":12,"chuva":11575.1,"n":4,"mortos":13,"afetados":2515},{"ano":2014,"mes":1,"chuva":11320.5,"n":3,"mortos":6,"afetados":1452},{"ano":2014,"mes":2,"chuva":11399.8,"n":7,"mortos":11,"afetados":2419},{"ano":2014,"mes":3,"chuva":12903.9,"n":9,"mortos":17,"afetados":4506},{"ano":2014,"mes":4,"chuva":6424.2,"n":4,"mortos":3,"afetados":1174},{"ano":2014,"mes":5,"chuva":5179.3,"n":1,"mortos":0,"afetados":354},{"ano":2014,"mes":6,"chuva":4014.5,"n":0,"mortos":0,"afetados":0},{"ano":2014,"mes":7,"chuva":4385.6,"n":0,"mortos":0,"afetados":0},{"ano":2014,"mes":8,"chuva":3997.5,"n":0,"mortos":0,"afetados":0},{"ano":2014,"mes":9,"chuva":2650.8,"n":0,"mortos":0,"afetados":0},{"ano":2014,"mes":10,"chuva":5397.8,"n":5,"mortos":6,"afetados":2748},{"ano":2014,"mes":11,"chuva":9362.5,"n":5,"mortos":5,"afetados":1391},{"ano":2014,"mes":12,"chuva":11268.2,"n":10,"mortos":9,"afetados":3655},{"ano":2015,"mes":1,"chuva":12913.6,"n":10,"mortos":12,"afetados":3786},{"ano":2015,"mes":2,"chuva":13168.7,"n":10,"mortos":14,"afetados":5248},{"ano":2015,"mes":3,"chuva":13187.1,"n":10,"mortos":18,"afetados":5188},{"ano":2015,"mes":4,"chuva":7894.2,"n":6,"mortos":6,"afetados":2843},{"ano":2015,"mes":5,"chuva":5362.7,"n":2,"mortos":3,"afetados":319},{"ano":2015,"mes":6,"chuva":4270.1,"n":1,"mortos":2,"afetados":422},{"ano":2015,"mes":7,"chuva":4576.5,"n":2,"mortos":2,"afetados":565},{"ano":2015,"mes":8,"chuva":3953.3,"n":1,"mortos":0,"afetados":126},{"ano":2015,"mes":9,"chuva":3703.0,"n":1,"mortos":5,"afetados":848},{"ano":2015,"mes":10,"chuva":4218.6,"n":1,"mortos":0,"afetados":136},{"ano":2015,"mes":11,"chuva":9252.5,"n":4,"mortos":6,"afetados":1790},{"ano":2015,"mes":12,"chuva":10946.9,"n":8,"mortos":7,"afetados":2961},{"ano":2016,"mes":1,"chuva":13211.0,"n":10,"mortos":9,"afetados":3452},{"ano":2016,"mes":2,"chuva":11986.9,"n":7,"mortos":8,"afetados":2912},{"ano":2016,"mes":3,"chuva":11739.1,"n":10,"mortos":15,"afetados":4752},{"ano":2016,"mes":4,"chuva":5903.2,"n":2,"mortos":0,"afetados":740},{"ano":2016,"mes":5,"chuva":6496.5,"n":4,"mortos":7,"afetados":2225},{"ano":2016,"mes":6,"chuva":4167.0,"n":1,"mortos":1,"afetados":537},{"ano":2016,"mes":7,"chuva":4976.4,"n":5,"mortos":6,"afetados":1582},{"ano":2016,"mes":8,"chuva":4915.4,"n":5,"mortos":6,"afetados":2531},{"ano":2016,"mes":9,"chuva":2750.0,"n":0,"mortos":0,"afetados":0},{"ano":2016,"mes":10,"chuva":4446.3,"n":3,"mortos":2,"afetados":741},{"ano":2016,"mes":11,"chuva":8590.4,"n":2,"mortos":1,"afetados":390},{"ano":2016,"mes":12,"chuva":12814.7,"n":11,"mortos":18,"afetados":4910},{"ano":2017,"mes":1,"chuva":12770.0,"n":10,"mortos":11,"afetados":4531},{"ano":2017,"mes":2,"chuva":10709.0,"n":6,"mortos":8,"afetados":1996},{"ano":2017,"mes":3,"chuva":10837.3,"n":7,"mortos":4,"afetados":1804},{"ano":2017,"mes":4,"chuva":7249.2,"n":2,"mortos":7,"afetados":1575},{"ano":2017,"mes":5,"chuva":5716.8,"n":2,"mortos":6,"afetados":934},{"ano":2017,"mes":6,"chuva":3975.2,"n":1,"mortos":0,"afetados":197},{"ano":2017,"mes":7,"chuva":4697.8,"n":3,"mortos":2,"afetados":936},{"ano":2017,"mes":8,"chuva":3469.4,"n":0,"mortos":0,"afetados":0},{"ano":2017,"mes":9,"chuva":2607.7,"n":0,"mortos":0,"afetados":0},{"ano":2017,"mes":10,"chuva":4580.1,"n":0,"mortos":0,"afetados":0},{"ano":2017,"mes":11,"chuva":10834.6,"n":11,"mortos":13,"afetados":4395},{"ano":2017,"mes":12,"chuva":11367.4,"n":5,"mortos":6,"afetados":1824},{"ano":2018,"mes":1,"chuva":14219.3,"n":7,"mortos":15,"afetados":3557},{"ano":2018,"mes":2,"chuva":12118.2,"n":11,"mortos":17,"afetados":4936},{"ano":2018,"mes":3,"chuva":10804.3,"n":4,"mortos":8,"afetados":2498},{"ano":2018,"mes":4,"chuva":6782.9,"n":2,"mortos":3,"afetados":924},{"ano":2018,"mes":5,"chuva":6440.6,"n":5,"mortos":7,"afetados":2650},{"ano":2018,"mes":6,"chuva":5088.6,"n":3,"mortos":1,"afetados":1311},{"ano":2018,"mes":7,"chuva":3955.5,"n":0,"mortos":0,"afetados":0},{"ano":2018,"mes":8,"chuva":3631.0,"n":2,"mortos":2,"afetados":454},{"ano":2018,"mes":9,"chuva":2618.6,"n":0,"mortos":0,"afetados":0},{"ano":2018,"mes":10,"chuva":4645.2,"n":2,"mortos":1,"afetados":981},{"ano":2018,"mes":11,"chuva":9545.0,"n":6,"mortos":6,"afetados":3025},{"ano":2018,"mes":12,"chuva":10207.7,"n":4,"mortos":7,"afetados":2072},{"ano":2019,"mes":1,"chuva":12142.2,"n":9,"mortos":12,"afetados":3748},{"ano":2019,"mes":2,"chuva":12678.3,"n":10,"mortos":13,"afetados":4439},{"ano":2019,"mes":3,"chuva":12129.4,"n":8,"mortos":13,"afetados":3694},{"ano":2019,"mes":4,"chuva":6693.6,"n":6,"mortos":8,"afetados":1968},{"ano":2019,"mes":5,"chuva":5659.4,"n":3,"mortos":2,"afetados":772},{"ano":2019,"mes":6,"chuva":4820.3,"n":4,"mortos":3,"afetados":1617},{"ano":2019,"mes":7,"chuva":4434.0,"n":0,"mortos":0,"afetados":0},{"ano":2019,"mes":8,"chuva":4369.4,"n":1,"mortos":1,"afetados":186},{"ano":2019,"mes":9,"chuva":2827.0,"n":1,"mortos":0,"afetados":138},{"ano":2019,"mes":10,"chuva":3964.1,"n":2,"mortos":0,"afetados":497},{"ano":2019,"mes":11,"chuva":9146.9,"n":6,"mortos":6,"afetados":1949},{"ano":2019,"mes":12,"chuva":11705.7,"n":10,"mortos":21,"afetados":4304},{"ano":2020,"mes":1,"chuva":12904.1,"n":6,"mortos":6,"afetados":3180},{"ano":2020,"mes":2,"chuva":11140.7,"n":4,"mortos":5,"afetados":1672},{"ano":2020,"mes":3,"chuva":12251.1,"n":13,"mortos":15,"afetados":4842},{"ano":2020,"mes":4,"chuva":7450.9,"n":6,"mortos":9,"afetados":1669},{"ano":2020,"mes":5,"chuva":5284.5,"n":3,"mortos":5,"afetados":894},{"ano":2020,"mes":6,"chuva":4147.6,"n":2,"mortos":1,"afetados":264},{"ano":2020,"mes":7,"chuva":4556.8,"n":3,"mortos":1,"afetados":613},{"ano":2020,"mes":8,"chuva":4023.4,"n":2,"mortos":0,"afetados":676},{"ano":2020,"mes":9,"chuva":3172.1,"n":2,"mortos":1,"afetados":824},{"ano":2020,"mes":10,"chuva":3817.1,"n":1,"mortos":1,"afetados":372},{"ano":2020,"mes":11,"chuva":9979.8,"n":3,"mortos":4,"afetados":1795},{"ano":2020,"mes":12,"chuva":12901.0,"n":14,"mortos":26,"afetados":6136},{"ano":2021,"mes":1,"chuva":12058.5,"n":8,"mortos":12,"afetados":2933},{"ano":2021,"mes":2,"chuva":12549.1,"n":7,"mortos":11,"afetados":4207},{"ano":2021,"mes":3,"chuva":11325.1,"n":8,"mortos":10,"afetados":2708},{"ano":2021,"mes":4,"chuva":7203.7,"n":4,"mortos":5,"afetados":1810},{"ano":2021,"mes":5,"chuva":6080.8,"n":1,"mortos":0,"afetados":225},{"ano":2021,"mes":6,"chuva":4565.7,"n":2,"mortos":1,"afetados":421},{"ano":2021,"mes":7,"chuva":5216.3,"n":7,"mortos":11,"afetados":2477},{"ano":2021,"mes":8,"chuva":3677.4,"n":1,"mortos":0,"afetados":172},{"ano":2021,"mes":9,"chuva":2812.4,"n":1,"mortos":2,"afetados":443},{"ano":2021,"mes":10,"chuva":4364.8,"n":5,"mortos":7,"afetados":1581},{"ano":2021,"mes":11,"chuva":8405.9,"n":3,"mortos":1,"afetados":776},{"ano":2021,"mes":12,"chuva":9997.5,"n":5,"mortos":5,"afetados":1424},{"ano":2022,"mes":1,"chuva":12026.4,"n":9,"mortos":13,"afetados":2603},{"ano":2022,"mes":2,"chuva":11312.6,"n":13,"mortos":250,"afetados":30238},{"ano":2022,"mes":3,"chuva":10972.0,"n":5,"mortos":4,"afetados":2134},{"ano":2022,"mes":4,"chuva":7006.0,"n":6,"mortos":8,"afetados":2319},{"ano":2022,"mes":5,"chuva":5730.2,"n":4,"mortos":133,"afetados":120923},{"ano":2022,"mes":6,"chuva":4406.4,"n":3,"mortos":3,"afetados":1189},{"ano":2022,"mes":7,"chuva":4420.9,"n":1,"mortos":0,"afetados":184},{"ano":2022,"mes":8,"chuva":4073.1,"n":1,"mortos":0,"afetados":121},{"ano":2022,"mes":9,"chuva":2944.8,"n":1,"mortos":1,"afetados":314},{"ano":2022,"mes":10,"chuva":3977.1,"n":0,"mortos":0,"afetados":0},{"ano":2022,"mes":11,"chuva":10135.0,"n":9,"mortos":7,"afetados":2723},{"ano":2022,"mes":12,"chuva":11902.5,"n":9,"mortos":9,"afetados":4866},{"ano":2023,"mes":1,"chuva":12850.7,"n":8,"mortos":12,"afetados":5383},{"ano":2023,"mes":2,"chuva":10173.6,"n":5,"mortos":6,"afetados":1526},{"ano":2023,"mes":3,"chuva":10883.9,"n":7,"mortos":10,"afetados":2098},{"ano":2023,"mes":4,"chuva":7714.8,"n":5,"mortos":7,"afetados":2494},{"ano":2023,"mes":5,"chuva":6834.0,"n":4,"mortos":3,"afetados":1386},{"ano":2023,"mes":6,"chuva":4362.6,"n":3,"mortos":2,"afetados":940},{"ano":2023,"mes":7,"chuva":4627.6,"n":2,"mortos":3,"afetados":359},{"ano":2023,"mes":8,"chuva":3514.7,"n":0,"mortos":0,"afetados":0},{"ano":2023,"mes":9,"chuva":2977.0,"n":1,"mortos":0,"afetados":182},{"ano":2023,"mes":10,"chuva":4236.8,"n":0,"mortos":0,"afetados":0},{"ano":2023,"mes":11,"chuva":11161.9,"n":11,"mortos":32,"afetados":45944},{"ano":2023,"mes":12,"chuva":12208.3,"n":10,"mortos":19,"afetados":4353},{"ano":2024,"mes":1,"chuva":12667.8,"n":7,"mortos":15,"afetados":2925},{"ano":2024,"mes":2,"chuva":10764.9,"n":3,"mortos":3,"afetados":1132},{"ano":2024,"mes":3,"chuva":10940.8,"n":4,"mortos":7,"afetados":1963},{"ano":2024,"mes":4,"chuva":6165.2,"n":0,"mortos":0,"afetados":0},{"ano":2024,"mes":5,"chuva":6663.8,"n":5,"mortos":158,"afetados":2302448},{"ano":2024,"mes":6,"chuva":4499.5,"n":2,"mortos":5,"afetados":785},{"ano":2024,"mes":7,"chuva":5507.5,"n":2,"mortos":8,"afetados":1721},{"ano":2024,"mes":8,"chuva":3402.1,"n":1,"mortos":1,"afetados":515},{"ano":2024,"mes":9,"chuva":2456.2,"n":0,"mortos":0,"afetados":0},{"ano":2024,"mes":10,"chuva":4266.0,"n":4,"mortos":6,"afetados":1038},{"ano":2024,"mes":11,"chuva":11158.4,"n":7,"mortos":18,"afetados":6061},{"ano":2024,"mes":12,"chuva":12046.7,"n":8,"mortos":12,"afetados":3748},{"ano":2025,"mes":1,"chuva":11616.5,"n":4,"mortos":2,"afetados":2142},{"ano":2025,"mes":2,"chuva":10528.1,"n":10,"mortos":8,"afetados":3315},{"ano":2025,"mes":3,"chuva":10336.8,"n":4,"mortos":4,"afetados":884},{"ano":2025,"mes":4,"chuva":5975.8,"n":3,"mortos":3,"afetados":763},{"ano":2025,"mes":5,"chuva":5467.4,"n":2,"mortos":0,"afetados":490},{"ano":2025,"mes":6,"chuva":5113.2,"n":4,"mortos":2,"afetados":1603},{"ano":2025,"mes":7,"chuva":5778.2,"n":3,"mortos":6,"afetados":2034},{"ano":2025,"mes":8,"chuva":3414.8,"n":1,"mortos":1,"afetados":343},{"ano":2025,"mes":9,"chuva":3171.6,"n":0,"mortos":0,"afetados":0},{"ano":2025,"mes":10,"chuva":4316.4,"n":3,"mortos":4,"afetados":712},{"ano":2025,"mes":11,"chuva":9449.8,"n":6,"mortos":6,"afetados":1696},{"ano":2025,"mes":12,"chuva":11758.2,"n":10,"mortos":14,"afetados":3561}],"municipios":[{"municipio":"Angra dos Reis","uf":"RJ","lat":-23.0067,"lon":-44.3181,"chuva":48800.0,"n":29,"mortos":38,"feridos":259,"desabrigados":1927,"desalojados":3730,"afetados":11889},{"municipio":"Belo Horizonte","uf":"MG","lat":-19.8516,"lon":-43.9704,"chuva":48051.3,"n":23,"mortos":28,"feridos":247,"desabrigados":1780,"desalojados":3596,"afetados":11285},{"municipio":"Belém","uf":"PA","lat":-1.3785,"lon":-48.476,"chuva":47228.2,"n":23,"mortos":40,"feridos":266,"desabrigados":1742,"desalojados":3355,"afetados":10670},{"municipio":"Blumenau","uf":"SC","lat":-26.9195,"lon":-49.0661,"chuva":45736.7,"n":26,"mortos":44,"feridos":220,"desabrigados":4821,"desalojados":11642,"afetados":48326},{"municipio":"Boa Vista","uf":"RR","lat":2.8414,"lon":-60.6922,"chuva":49524.0,"n":27,"mortos":32,"feridos":209,"desabrigados":1737,"desalojados":3326,"afetados":10644},{"municipio":"Brasília","uf":"DF","lat":-15.7801,"lon":-47.9292,"chuva":50348.3,"n":37,"mortos":57,"feridos":369,"desabrigados":2557,"desalojados":5077,"afetados":16226},{"municipio":"Campo Grande","uf":"MS","lat":-20.4697,"lon":-54.6201,"chuva":41860.5,"n":27,"mortos":26,"feridos":211,"desabrigados":1489,"desalojados":2855,"afetados":9283},{"municipio":"Cuiabá","uf":"MT","lat":-15.6522,"lon":-56.1003,"chuva":47789.4,"n":26,"mortos":30,"feridos":221,"desabrigados":1636,"desalojados":3360,"afetados":10538},{"municipio":"Curitiba","uf":"PR","lat":-25.53,"lon":-49.1731,"chuva":48121.8,"n":17,"mortos":33,"feridos":165,"desabrigados":1334,"desalojados":2739,"afetados":8660},{"municipio":"Florianópolis","uf":"SC","lat":-27.5954,"lon":-48.548,"chuva":47480.2,"n":34,"mortos":33,"feridos":237,"desabrigados":1761,"desalojados":3584,"afetados":11306},{"municipio":"Fortaleza","uf":"CE","lat":-3.748,"lon":-38.5476,"chuva":47168.2,"n":28,"mortos":28,"feridos":223,"desabrigados":1663,"desalojados":3509,"afetados":11070},{"municipio":"Goiânia","uf":"GO","lat":-16.6325,"lon":-49.2201,"chuva":46915.0,"n":27,"mortos":38,"feridos":250,"desabrigados":1667,"desalojados":3258,"afetados":10550},{"municipio":"Joinville","uf":"SC","lat":-26.177,"lon":-48.852,"chuva":48831.7,"n":30,"mortos":43,"feridos":259,"desabrigados":1904,"desalojados":3681,"afetados":11728},{"municipio":"Macapá","uf":"AP","lat":0.0388,"lon":-51.0664,"chuva":47593.2,"n":26,"mortos":26,"feridos":219,"desabrigados":1570,"desalojados":3209,"afetados":9974},{"municipio":"Maceió","uf":"AL","lat":-9.3991,"lon":-36.6321,"chuva":48283.3,"n":27,"mortos":29,"feridos":283,"desabrigados":2063,"desalojados":4112,"afetados":12978},{"municipio":"Manaus","uf":"AM","lat":-3.119,"lon":-60.0217,"chuva":55071.1,"n":33,"mortos":49,"feridos":307,"desabrigados":2342,"desalojados":4722,"afetados":14819},{"municipio":"Natal","uf":"RN","lat":-5.9091,"lon":-35.2478,"chuva":46343.9,"n":27,"mortos":38,"feridos":231,"desabrigados":1718,"desalojados":3381,"afetados":10715},{"municipio":"Nova Friburgo","uf":"RJ","lat":-22.2823,"lon":-42.5311,"chuva":48540.6,"n":26,"mortos":462,"feridos":578,"desabrigados":17114,"desalojados":26202,"afetados":93387},{"municipio":"Petrópolis","uf":"RJ","lat":-22.5096,"lon":-43.1796,"chuva":47024.6,"n":26,"mortos":272,"feridos":651,"desabrigados":4586,"desalojados":11603,"afetados":36314},{"municipio":"Porto Alegre","uf":"RS","lat":-30.0331,"lon":-51.23,"chuva":46432.6,"n":28,"mortos":173,"feridos":1002,"desabrigados":71435,"desalojados":382938,"afetados":2309253},{"municipio":"Porto Velho","uf":"RO","lat":-8.7619,"lon":-63.8978,"chuva":48923.1,"n":25,"mortos":33,"feridos":228,"desabrigados":1599,"desalojados":3371,"afetados":10504},{"municipio":"Recife","uf":"PE","lat":-8.0584,"lon":-34.9286,"chuva":47571.8,"n":23,"mortos":150,"feridos":541,"desabrigados":9451,"desalojados":19052,"afetados":129741},{"municipio":"Rio Branco","uf":"AC","lat":-9.9574,"lon":-67.806,"chuva":48194.9,"n":27,"mortos":47,"feridos":275,"desabrigados":1964,"desalojados":3899,"afetados":12407},{"municipio":"Rio de Janeiro","uf":"RJ","lat":-22.9899,"lon":-43.3496,"chuva":47677.2,"n":24,"mortos":28,"feridos":167,"desabrigados":1468,"desalojados":2896,"afetados":9306},{"municipio":"Salvador","uf":"BA","lat":-13.0078,"lon":-38.532,"chuva":48226.7,"n":25,"mortos":37,"feridos":268,"desabrigados":1788,"desalojados":3526,"afetados":11312},{"municipio":"São Luís","uf":"MA","lat":-2.5307,"lon":-44.3068,"chuva":47515.2,"n":24,"mortos":31,"feridos":196,"desabrigados":1553,"desalojados":2943,"afetados":9558},{"municipio":"São Paulo","uf":"SP","lat":-23.5489,"lon":-46.6388,"chuva":50708.9,"n":35,"mortos":53,"feridos":307,"desabrigados":2393,"desalojados":4712,"afetados":15208},{"municipio":"Teresina","uf":"PI","lat":-5.0892,"lon":-42.8019,"chuva":42964.3,"n":24,"mortos":40,"feridos":238,"desabrigados":1669,"desalojados":3294,"afetados":10562},{"municipio":"Teresópolis","uf":"RJ","lat":-22.4125,"lon":-42.9658,"chuva":49942.5,"n":38,"mortos":431,"feridos":599,"desabrigados":14661,"desalojados":23476,"afetados":77436},{"municipio":"Vitória","uf":"ES","lat":-20.3155,"lon":-40.3128,"chuva":50548.3,"n":33,"mortos":44,"feridos":296,"desabrigados":2092,"desalojados":4115,"afetados":13270}],"trimestral":[{"ano":2010,"trim":"T1","volume_mm":35618.9,"volume_k":35.62},{"ano":2010,"trim":"T2","volume_mm":16834.5,"volume_k":16.83},{"ano":2010,"trim":"T3","volume_mm":11988.5,"volume_k":11.99},{"ano":2010,"trim":"T4","volume_mm":25136.8,"volume_k":25.14},{"ano":2011,"trim":"T1","volume_mm":37382.6,"volume_k":37.38},{"ano":2011,"trim":"T2","volume_mm":17349.8,"volume_k":17.35},{"ano":2011,"trim":"T3","volume_mm":11265.9,"volume_k":11.27},{"ano":2011,"trim":"T4","volume_mm":23398.6,"volume_k":23.4},{"ano":2012,"trim":"T1","volume_mm":36126.4,"volume_k":36.13},{"ano":2012,"trim":"T2","volume_mm":16827.5,"volume_k":16.83},{"ano":2012,"trim":"T3","volume_mm":11718.1,"volume_k":11.72},{"ano":2012,"trim":"T4","volume_mm":25633.9,"volume_k":25.63},{"ano":2013,"trim":"T1","volume_mm":33783.3,"volume_k":33.78},{"ano":2013,"trim":"T2","volume_mm":17866.0,"volume_k":17.87},{"ano":2013,"trim":"T3","volume_mm":10547.5,"volume_k":10.55},{"ano":2013,"trim":"T4","volume_mm":26943.9,"volume_k":26.94},{"ano":2014,"trim":"T1","volume_mm":35624.2,"volume_k":35.62},{"ano":2014,"trim":"T2","volume_mm":15618.0,"volume_k":15.62},{"ano":2014,"trim":"T3","volume_mm":11033.9,"volume_k":11.03},{"ano":2014,"trim":"T4","volume_mm":26028.5,"volume_k":26.03},{"ano":2015,"trim":"T1","volume_mm":39269.4,"volume_k":39.27},{"ano":2015,"trim":"T2","volume_mm":17527.0,"volume_k":17.53},{"ano":2015,"trim":"T3","volume_mm":12232.8,"volume_k":12.23},{"ano":2015,"trim":"T4","volume_mm":24418.0,"volume_k":24.42},{"ano":2016,"trim":"T1","volume_mm":36937.0,"volume_k":36.94},{"ano":2016,"trim":"T2","volume_mm":16566.7,"volume_k":16.57},{"ano":2016,"trim":"T3","volume_mm":12641.8,"volume_k":12.64},{"ano":2016,"trim":"T4","volume_mm":25851.4,"volume_k":25.85},{"ano":2017,"trim":"T1","volume_mm":34316.3,"volume_k":34.32},{"ano":2017,"trim":"T2","volume_mm":16941.2,"volume_k":16.94},{"ano":2017,"trim":"T3","volume_mm":10774.9,"volume_k":10.77},{"ano":2017,"trim":"T4","volume_mm":26782.1,"volume_k":26.78},{"ano":2018,"trim":"T1","volume_mm":37141.8,"volume_k":37.14},{"ano":2018,"trim":"T2","volume_mm":18312.1,"volume_k":18.31},{"ano":2018,"trim":"T3","volume_mm":10205.1,"volume_k":10.21},{"ano":2018,"trim":"T4","volume_mm":24397.9,"volume_k":24.4},{"ano":2019,"trim":"T1","volume_mm":36949.9,"volume_k":36.95},{"ano":2019,"trim":"T2","volume_mm":17173.3,"volume_k":17.17},{"ano":2019,"trim":"T3","volume_mm":11630.4,"volume_k":11.63},{"ano":2019,"trim":"T4","volume_mm":24816.7,"volume_k":24.82},{"ano":2020,"trim":"T1","volume_mm":36295.9,"volume_k":36.3},{"ano":2020,"trim":"T2","volume_mm":16883.0,"volume_k":16.88},{"ano":2020,"trim":"T3","volume_mm":11752.3,"volume_k":11.75},{"ano":2020,"trim":"T4","volume_mm":26697.9,"volume_k":26.7},{"ano":2021,"trim":"T1","volume_mm":35932.7,"volume_k":35.93},{"ano":2021,"trim":"T2","volume_mm":17850.2,"volume_k":17.85},{"ano":2021,"trim":"T3","volume_mm":11706.1,"volume_k":11.71},{"ano":2021,"trim":"T4","volume_mm":22768.2,"volume_k":22.77},{"ano":2022,"trim":"T1","volume_mm":34311.0,"volume_k":34.31},{"ano":2022,"trim":"T2","volume_mm":17142.6,"volume_k":17.14},{"ano":2022,"trim":"T3","volume_mm":11438.8,"volume_k":11.44},{"ano":2022,"trim":"T4","volume_mm":26014.6,"volume_k":26.01},{"ano":2023,"trim":"T1","volume_mm":33908.2,"volume_k":33.91},{"ano":2023,"trim":"T2","volume_mm":18911.4,"volume_k":18.91},{"ano":2023,"trim":"T3","volume_mm":11119.3,"volume_k":11.12},{"ano":2023,"trim":"T4","volume_mm":27607.0,"volume_k":27.61},{"ano":2024,"trim":"T1","volume_mm":34373.5,"volume_k":34.37},{"ano":2024,"trim":"T2","volume_mm":17328.5,"volume_k":17.33},{"ano":2024,"trim":"T3","volume_mm":11365.8,"volume_k":11.37},{"ano":2024,"trim":"T4","volume_mm":27471.1,"volume_k":27.47},{"ano":2025,"trim":"T1","volume_mm":32481.4,"volume_k":32.48},{"ano":2025,"trim":"T2","volume_mm":16556.4,"volume_k":16.56},{"ano":2025,"trim":"T3","volume_mm":12364.6,"volume_k":12.36},{"ano":2025,"trim":"T4","volume_mm":25524.4,"volume_k":25.52}],"anual":[{"ano":2010,"volume_mm":89578.7,"n":54,"mortos":69,"afetados":23761,"chuva_k":89.58},{"ano":2011,"volume_mm":89396.9,"n":43,"mortos":863,"afetados":157733,"chuva_k":89.4},{"ano":2012,"volume_mm":90305.9,"n":49,"mortos":59,"afetados":24148,"chuva_k":90.31},{"ano":2013,"volume_mm":89140.7,"n":45,"mortos":70,"afetados":18390,"chuva_k":89.14},{"ano":2014,"volume_mm":88304.6,"n":44,"mortos":57,"afetados":17699,"chuva_k":88.3},{"ano":2015,"volume_mm":93447.2,"n":56,"mortos":75,"afetados":24232,"chuva_k":93.45},{"ano":2016,"volume_mm":91996.9,"n":60,"mortos":73,"afetados":24772,"chuva_k":92.0},{"ano":2017,"volume_mm":88814.5,"n":47,"mortos":57,"afetados":18192,"chuva_k":88.81},{"ano":2018,"volume_mm":90056.9,"n":46,"mortos":67,"afetados":22408,"chuva_k":90.06},{"ano":2019,"volume_mm":90570.3,"n":60,"mortos":79,"afetados":23312,"chuva_k":90.57},{"ano":2020,"volume_mm":91629.1,"n":59,"mortos":74,"afetados":22937,"chuva_k":91.63},{"ano":2021,"volume_mm":88257.2,"n":52,"mortos":65,"afetados":19177,"chuva_k":88.26},{"ano":2022,"volume_mm":88907.0,"n":61,"mortos":428,"afetados":167614,"chuva_k":88.91},{"ano":2023,"volume_mm":91545.9,"n":56,"mortos":94,"afetados":64665,"chuva_k":91.55},{"ano":2024,"volume_mm":90538.9,"n":43,"mortos":233,"afetados":2322336,"chuva_k":90.54},{"ano":2025,"volume_mm":86926.8,"n":50,"mortos":50,"afetados":17543,"chuva_k":86.93}],"tipos":[{"tipo":"Alagamento","n":110},{"tipo":"Tempestade","n":103},{"tipo":"Deslizamento de terra","n":102},{"tipo":"Vendaval","n":92},{"tipo":"Inundação brusca","n":91},{"tipo":"Erosão costeira","n":89},{"tipo":"Enxurrada","n":86},{"tipo":"Enchente","n":78},{"tipo":"Granizo","n":74}],"extremos":[{"data":"03/05/2024","municipio":"Porto Alegre","uf":"RS","tipo_desastre":"Enchente","chuva_acumulada_mm":320.0,"mortos":147,"desabrigados":70000,"pessoas_afetadas":2300000},{"data":"28/05/2022","municipio":"Recife","uf":"PE","tipo_desastre":"Deslizamento de terra","chuva_acumulada_mm":233.0,"mortos":128,"desabrigados":8000,"pessoas_afetadas":120000},{"data":"12/01/2011","municipio":"Nova Friburgo","uf":"RJ","tipo_desastre":"Deslizamento de terra","chuva_acumulada_mm":280.0,"mortos":428,"desabrigados":15000,"pessoas_afetadas":80000},{"data":"12/01/2011","municipio":"Teresópolis","uf":"RJ","tipo_desastre":"Enxurrada","chuva_acumulada_mm":263.0,"mortos":385,"desabrigados":12000,"pessoas_afetadas":60000},{"data":"18/11/2023","municipio":"Blumenau","uf":"SC","tipo_desastre":"Enxurrada","chuva_acumulada_mm":198.0,"mortos":14,"desabrigados":3500,"pessoas_afetadas":40000},{"data":"15/02/2022","municipio":"Petrópolis","uf":"RJ","tipo_desastre":"Deslizamento de terra","chuva_acumulada_mm":258.0,"mortos":233,"desabrigados":2800,"pessoas_afetadas":25000},{"data":"19/11/2024","municipio":"Teresópolis","uf":"RJ","tipo_desastre":"Alagamento","chuva_acumulada_mm":1339.4,"mortos":4,"desabrigados":425,"pessoas_afetadas":2630},{"data":"10/01/2023","municipio":"Brasília","uf":"DF","tipo_desastre":"Enchente","chuva_acumulada_mm":952.6,"mortos":4,"desabrigados":289,"pessoas_afetadas":1816},{"data":"21/12/2022","municipio":"Nova Friburgo","uf":"RJ","tipo_desastre":"Erosão costeira","chuva_acumulada_mm":980.4,"mortos":2,"desabrigados":272,"pessoas_afetadas":1811},{"data":"17/01/2012","municipio":"Belém","uf":"PA","tipo_desastre":"Deslizamento de terra","chuva_acumulada_mm":829.9,"mortos":6,"desabrigados":235,"pessoas_afetadas":1617},{"data":"09/02/2022","municipio":"Belém","uf":"PA","tipo_desastre":"Enchente","chuva_acumulada_mm":776.3,"mortos":4,"desabrigados":256,"pessoas_afetadas":1504},{"data":"18/03/2011","municipio":"Teresina","uf":"PI","tipo_desastre":"Enchente","chuva_acumulada_mm":808.6,"mortos":3,"desabrigados":250,"pessoas_afetadas":1498},{"data":"04/04/2023","municipio":"Macapá","uf":"AP","tipo_desastre":"Tempestade","chuva_acumulada_mm":787.5,"mortos":5,"desabrigados":231,"pessoas_afetadas":1466},{"data":"08/02/2018","municipio":"São Luís","uf":"MA","tipo_desastre":"Enxurrada","chuva_acumulada_mm":782.0,"mortos":4,"desabrigados":215,"pessoas_afetadas":1432},{"data":"13/03/2010","municipio":"Nova Friburgo","uf":"RJ","tipo_desastre":"Enxurrada","chuva_acumulada_mm":713.5,"mortos":2,"desabrigados":229,"pessoas_afetadas":1424},{"data":"26/07/2024","municipio":"Recife","uf":"PE","tipo_desastre":"Alagamento","chuva_acumulada_mm":758.3,"mortos":7,"desabrigados":205,"pessoas_afetadas":1405},{"data":"22/02/2021","municipio":"Angra dos Reis","uf":"RJ","tipo_desastre":"Enxurrada","chuva_acumulada_mm":738.0,"mortos":6,"desabrigados":213,"pessoas_afetadas":1381},{"data":"26/01/2012","municipio":"Brasília","uf":"DF","tipo_desastre":"Inundação brusca","chuva_acumulada_mm":708.7,"mortos":5,"desabrigados":204,"pessoas_afetadas":1368},{"data":"11/11/2024","municipio":"Belo Horizonte","uf":"MG","tipo_desastre":"Granizo","chuva_acumulada_mm":695.0,"mortos":3,"desabrigados":203,"pessoas_afetadas":1346},{"data":"16/11/2023","municipio":"Manaus","uf":"AM","tipo_desastre":"Tempestade","chuva_acumulada_mm":678.9,"mortos":6,"desabrigados":228,"pessoas_afetadas":1309}]};
+
+// ═══════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════
+const MESES = ["","Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const CORES = ["#00d4ff","#7c3aed","#ff6b35","#ffa502","#ff4757","#2ed573","#00cec9","#a29bfe","#fd79a8","#74b9ff"];
+
+function fmt(n){
+  n=+n||0;
+  if(n>=1e6)return(n/1e6).toFixed(1)+"M";
+  if(n>=1e3)return(n/1e3).toFixed(1)+"k";
+  return Math.round(n).toString();
+}
+function fmtMM(n){n=+n||0;if(n>=1e3)return(n/1e3).toFixed(1)+"k";return Math.round(n).toString();}
+
+function pearson(xs,ys){
+  const n=xs.length; if(n<2)return 0;
+  const mx=xs.reduce((a,b)=>a+b)/n, my=ys.reduce((a,b)=>a+b)/n;
+  let num=0,dx=0,dy=0;
+  for(let i=0;i<n;i++){const a=xs[i]-mx,b=ys[i]-my;num+=a*b;dx+=a*a;dy+=b*b;}
+  return dx&&dy?num/Math.sqrt(dx*dy):0;
+}
+
+// Chart instances registry (to destroy before redraw)
+const charts={};
+function destroyChart(id){if(charts[id]){charts[id].destroy();delete charts[id];}}
+
+const C = {
+  bg:'rgba(0,0,0,0)', grid:'rgba(255,255,255,0.05)', text:'#e8eaf6', muted:'#7986a8',
+  font:{family:"'DM Sans', sans-serif",size:11}
+};
+function baseOpts(extra={}){
+  return {
+    responsive:true, maintainAspectRatio:true,
+    plugins:{legend:{display:false,...(extra.legend||{})},tooltip:{backgroundColor:'rgba(13,17,32,.95)',
+      borderColor:'rgba(0,212,255,.3)',borderWidth:1,titleColor:C.text,bodyColor:C.muted,
+      titleFont:{family:C.font.family,size:12,weight:'bold'},bodyFont:{family:C.font.family,size:11},...(extra.tooltip||{})}},
+    scales:{x:{grid:{color:C.grid},ticks:{color:C.muted,font:C.font},...(extra.x||{})},
+            y:{grid:{color:C.grid},ticks:{color:C.muted,font:C.font},...(extra.y||{})}},
+    ...extra.root
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════════
+let anoSel=0, mesSel=0;
+
+function getFiltered(){
+  const ano=+document.getElementById('selAno').value||0;
+  const mes=+document.getElementById('selMes').value||0;
+  return DB.anomes.filter(r=>(!ano||r.ano===ano)&&(!mes||r.mes===mes));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════
+function initFilters(){
+  const sel=document.getElementById('selAno');
+  sel.innerHTML='<option value="0">Todos os anos</option>';
+  DB.totais.anos.slice().reverse().forEach(a=>{
+    const o=document.createElement('option'); o.value=a; o.textContent=a; sel.appendChild(o);
+  });
+  sel.value=DB.totais.anos[DB.totais.anos.length-1]; // default: último ano
+}
+
+function aplicarFiltros(){renderAll();}
+
+function renderAll(){
+  const ano=+document.getElementById('selAno').value||0;
+  const mes=+document.getElementById('selMes').value||0;
+  const periodoStr = mes ? `${MESES[mes]} / ${ano||'Todos'}` : (ano?`Ano ${ano}`:'Todo o período');
+  document.getElementById('periodoLabel').innerHTML =
+    `Análise de precipitação e desastres naturais · Brasil · <b>${periodoStr}</b>`;
+  renderKPIs(ano,mes);
+  renderBarChart(ano,mes);
+  renderLineChart(ano,mes);
+  renderScatter(ano,mes);
+  renderDoughnut();
+  renderTrimestral();
+  renderRankings();
+  renderTendencia();
+  renderImpacto();
+  renderExtremos();
+  if(document.getElementById('chkMapa').checked) renderMap();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// KPIs
+// ═══════════════════════════════════════════════════════════════════
+function renderKPIs(ano,mes){
+  const rows=getFiltered();
+  // chuva: soma de todos os municípios × período
+  // Para chuva usamos DB.municipios filtrado pela parte de desastres...
+  // Melhor: anomes já tem chuva total agrupada por período
+  const chuva=rows.reduce((s,r)=>s+r.chuva,0);
+  const dis=rows.reduce((s,r)=>s+r.n,0);
+  const mort=rows.reduce((s,r)=>s+r.mortos,0);
+  // feridos/desab/desal/afet: usamos DB.municipios filtrado por desastres no período
+  const desR=DB.municipios; // fallback para totais se sem filtro de ano
+  // Para filtros de período, recalcular via desastres extremos seria ideal,
+  // mas usamos os dados de anomes que têm mortos e afetados
+  const afet=rows.reduce((s,r)=>s+r.afetados,0);
+  // feridos/desab/desal não estão em anomes — usamos proporção do total
+  const ratio=afet/(DB.totais.afetados||1);
+  document.getElementById('kpi-chuva').textContent=fmtMM(chuva);
+  document.getElementById('kpi-dis').textContent=fmt(dis);
+  document.getElementById('kpi-mort').textContent=fmt(mort);
+  document.getElementById('kpi-fer').textContent=fmt(Math.round(DB.totais.feridos*ratio));
+  document.getElementById('kpi-desab').textContent=fmt(Math.round(DB.totais.desabrigados*ratio));
+  document.getElementById('kpi-desal').textContent=fmt(Math.round(DB.totais.desalojados*ratio));
+  document.getElementById('kpi-afet').textContent=fmt(afet);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// BAR CHART
+// ═══════════════════════════════════════════════════════════════════
+function renderBarChart(ano,mes){
+  const topN=+document.getElementById('sliderN').value||10;
+  // Chuva por município filtrada por período
+  let munData;
+  if(!ano && !mes){
+    munData=[...DB.municipios].sort((a,b)=>b.chuva-a.chuva).slice(0,topN);
+  } else {
+    // Agrega anomes filtrado por municipio (não temos por municipio/periodo separado)
+    // Usamos DB.municipios com proporção do período
+    const rows=getFiltered();
+    const totalGeral=DB.anomes.reduce((s,r)=>s+r.chuva,0);
+    const totalPeriodo=rows.reduce((s,r)=>s+r.chuva,0);
+    const ratio=totalGeral?totalPeriodo/totalGeral:1;
+    munData=[...DB.municipios].map(m=>({...m,chuva:m.chuva*ratio})).sort((a,b)=>b.chuva-a.chuva).slice(0,topN);
+  }
+  const labels=munData.map(m=>`${m.municipio} (${m.uf})`);
+  const vals=munData.map(m=>+(m.chuva/1000).toFixed(1));
+  destroyChart('bar');
+  const ctx=document.getElementById('chartBar').getContext('2d');
+  charts.bar=new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:[{data:vals,backgroundColor:vals.map((_,i)=>`rgba(0,212,255,${0.35+i/vals.length*0.5})`),
+      borderColor:'rgba(0,212,255,.5)',borderWidth:1,borderRadius:4}]},
+    options:{...baseOpts({x:{ticks:{color:C.muted,font:{size:9}}},y:{ticks:{callback:v=>v+'k',color:C.muted,font:C.font}},
+      root:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+c.raw+'k mm'}}}}}),
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// LINE CHART
+// ═══════════════════════════════════════════════════════════════════
+function renderLineChart(ano,mes){
+  const rows=getFiltered().sort((a,b)=>a.ano-b.ano||a.mes-b.mes);
+  let labels,vals;
+  if(mes){
+    labels=rows.map(r=>r.ano.toString());
+    vals=rows.map(r=>+(r.chuva/1000).toFixed(2));
+  } else if(ano){
+    labels=rows.map(r=>MESES[r.mes]);
+    vals=rows.map(r=>+(r.chuva/1000).toFixed(2));
+  } else {
+    const byYear={};
+    rows.forEach(r=>{byYear[r.ano]=(byYear[r.ano]||0)+r.chuva;});
+    labels=Object.keys(byYear); vals=Object.values(byYear).map(v=>+(v/1000).toFixed(2));
+  }
+  const avg=vals.reduce((a,b)=>a+b,0)/vals.length;
+  destroyChart('line');
+  const ctx=document.getElementById('chartLine').getContext('2d');
+  const grad=ctx.createLinearGradient(0,0,0,280);
+  grad.addColorStop(0,'rgba(0,212,255,0.15)'); grad.addColorStop(1,'rgba(0,212,255,0)');
+  charts.line=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[
+      {data:vals,borderColor:'#00d4ff',borderWidth:2.5,backgroundColor:grad,fill:true,
+       pointBackgroundColor:'#00d4ff',pointRadius:3,tension:.4,label:'Chuva'},
+      {data:vals.map(()=>+avg.toFixed(2)),borderColor:'rgba(255,107,53,.5)',borderWidth:1.5,
+       borderDash:[4,4],pointRadius:0,fill:false,label:'Média'}
+    ]},
+    options:baseOpts({y:{ticks:{callback:v=>v+'k',color:C.muted,font:C.font}},
+      root:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.raw}k mm`}}}}})
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SCATTER (correlação)
+// ═══════════════════════════════════════════════════════════════════
+function renderScatter(ano,mes){
+  const rows=getFiltered();
+  const totalGeral=DB.anomes.reduce((s,r)=>s+r.chuva,0);
+  const totalPeriodo=rows.reduce((s,r)=>s+r.chuva,0);
+  const ratio=totalGeral?totalPeriodo/totalGeral:1;
+  const pts=DB.municipios.map(m=>({x:+(m.chuva*ratio/1000).toFixed(1),y:m.n,label:m.municipio,r:Math.sqrt(m.afetados/50+4)}));
+  const xs=pts.map(p=>p.x), ys=pts.map(p=>p.y);
+  const r=pearson(xs,ys);
+  document.getElementById('corrVal').textContent=`r = ${r.toFixed(3)}`;
+  document.getElementById('corrDesc').textContent=Math.abs(r)>.7?'Correlação forte positiva':Math.abs(r)>.4?'Correlação moderada':'Correlação fraca';
+  destroyChart('scatter');
+  const ctx=document.getElementById('chartScatter').getContext('2d');
+  charts.scatter=new Chart(ctx,{
+    type:'bubble',
+    data:{datasets:[{data:pts.map(p=>({x:p.x,y:p.y,r:Math.min(p.r,20),label:p.label})),
+      backgroundColor:'rgba(124,58,237,.45)',borderColor:'rgba(124,58,237,.8)',borderWidth:1}]},
+    options:baseOpts({x:{title:{display:true,text:'Chuva Total (k mm)',color:C.muted,font:{size:10}}},
+      y:{title:{display:true,text:'Nº Desastres',color:C.muted,font:{size:10}}},
+      root:{plugins:{tooltip:{callbacks:{label:c=>`${c.raw.label}: ${c.raw.x}k mm · ${c.raw.y} eventos`}}}}})
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DOUGHNUT
+// ═══════════════════════════════════════════════════════════════════
+function renderDoughnut(){
+  destroyChart('donut');
+  const ctx=document.getElementById('chartDoughnut').getContext('2d');
+  charts.donut=new Chart(ctx,{
+    type:'doughnut',
+    data:{labels:DB.tipos.map(t=>t.tipo),datasets:[{data:DB.tipos.map(t=>t.n),
+      backgroundColor:CORES,borderWidth:0,hoverOffset:6}]},
+    options:{responsive:true,cutout:'58%',
+      plugins:{legend:{display:true,position:'bottom',labels:{color:C.muted,font:{size:9},padding:8,boxWidth:10}},
+        tooltip:{callbacks:{label:c=>` ${c.label}: ${c.raw}`}}}}
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TRIMESTRAL (multi-line)
+// ═══════════════════════════════════════════════════════════════════
+function renderTrimestral(){
+  const trims=['T1','T2','T3','T4'];
+  const trimLabels=['T1 Jan–Mar','T2 Abr–Jun','T3 Jul–Set','T4 Out–Dez'];
+  const coresTrim=['#00d4ff','#7c3aed','#ff6b35','#2ed573'];
+  const anos=DB.totais.anos;
+  const datasets=trims.map((t,i)=>{
+    const data=anos.map(a=>{
+      const r=DB.trimestral.find(x=>x.ano===a&&x.trim===t);
+      return r?+r.volume_k.toFixed(2):null;
+    });
+    return{label:trimLabels[i],data,borderColor:coresTrim[i],backgroundColor:'transparent',
+      borderWidth:2,pointRadius:3,pointBackgroundColor:coresTrim[i],tension:.4};
+  });
+  destroyChart('trim');
+  const ctx=document.getElementById('chartTrim').getContext('2d');
+  charts.trim=new Chart(ctx,{
+    type:'line',
+    data:{labels:anos,datasets},
+    options:baseOpts({x:{ticks:{maxRotation:45,font:{size:9}}},
+      y:{ticks:{callback:v=>v+'k',font:C.font}},
+      root:{plugins:{legend:{display:true,position:'bottom',labels:{color:C.muted,font:{size:9},padding:8,boxWidth:10}}}}})
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// RANKINGS
+// ═══════════════════════════════════════════════════════════════════
+function renderRankings(){
+  const topN=+document.getElementById('sliderN').value||10;
+  const rows=getFiltered();
+  const totalGeral=DB.anomes.reduce((s,r)=>s+r.chuva,0);
+  const totalPeriodo=rows.reduce((s,r)=>s+r.chuva,0);
+  const ratio=totalGeral?totalPeriodo/totalGeral:1;
+
+  const sorted_c=[...DB.municipios].map(m=>({...m,chuva:m.chuva*ratio})).sort((a,b)=>b.chuva-a.chuva).slice(0,topN);
+  const sorted_d=[...DB.municipios].sort((a,b)=>b.n-a.n).slice(0,topN);
+  const sorted_a=[...DB.municipios].sort((a,b)=>b.afetados-a.afetados).slice(0,topN);
+
+  function buildTable(tbodyId,data,valFn,fmtFn,cor){
+    const tb=document.getElementById(tbodyId);
+    const max=valFn(data[0])||1;
+    tb.innerHTML=data.map((m,i)=>{
+      const v=valFn(m); const pct=Math.round(v/max*100);
+      const medal=i===0?'🥇':i===1?'🥈':i===2?'🥉':`<span class="rank-num">#${i+1}</span>`;
+      return`<tr><td>${medal}</td><td><b style="font-size:.78rem">${m.municipio}</b><br><span style="font-size:.65rem;color:var(--muted)">${m.uf}</span></td>
+        <td style="font-family:'Syne',sans-serif;color:${cor};font-size:.82rem">${fmtFn(v)}</td>
+        <td><div class="rank-bar-wrap"><div class="rank-bar-fill" style="width:${pct}%;background:${cor}"></div></div></td></tr>`;
+    }).join('');
+  }
+  buildTable('rankChuva',sorted_c,m=>m.chuva,v=>fmtMM(v)+'mm','#00d4ff');
+  buildTable('rankDes',sorted_d,m=>m.n,v=>v,'#ff6b35');
+  buildTable('rankAfet',sorted_a,m=>m.afetados,v=>fmt(v),'#7c3aed');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// TENDÊNCIA ANUAL
+// ═══════════════════════════════════════════════════════════════════
+function renderTendencia(){
+  const anos=DB.anual.map(r=>r.ano);
+  const chuva=DB.anual.map(r=>+r.chuva_k.toFixed(1));
+  const des=DB.anual.map(r=>r.n);
+  destroyChart('tend');
+  const ctx=document.getElementById('chartTend').getContext('2d');
+  charts.tend=new Chart(ctx,{
+    type:'bar',
+    data:{labels:anos,datasets:[
+      {type:'bar',label:'Chuva (k mm)',data:chuva,backgroundColor:'rgba(0,212,255,.2)',borderColor:'rgba(0,212,255,.5)',borderWidth:1,yAxisID:'y'},
+      {type:'line',label:'Desastres',data:des,borderColor:'#ff6b35',borderWidth:2.5,pointRadius:4,
+       pointBackgroundColor:'#ff6b35',fill:false,tension:.3,yAxisID:'y2'}
+    ]},
+    options:{...baseOpts(),scales:{
+      x:{grid:{color:C.grid},ticks:{color:C.muted,font:{size:9},maxRotation:45}},
+      y:{grid:{color:C.grid},ticks:{callback:v=>v+'k',color:C.muted,font:C.font},position:'left'},
+      y2:{grid:{display:false},ticks:{color:'#ff6b35',font:C.font},position:'right'}
+    },plugins:{legend:{display:true,position:'top',labels:{color:C.muted,font:{size:9},padding:12,boxWidth:10}}}}
+  });
+}
+
+function renderImpacto(){
+  const anos=DB.anual.map(r=>r.ano);
+  const afet=DB.anual.map(r=>r.afetados);
+  const mort=DB.anual.map(r=>r.mortos);
+  destroyChart('imp');
+  const ctx=document.getElementById('chartImpacto').getContext('2d');
+  const grad=ctx.createLinearGradient(0,0,0,280);
+  grad.addColorStop(0,'rgba(124,58,237,.15)'); grad.addColorStop(1,'rgba(124,58,237,0)');
+  charts.imp=new Chart(ctx,{
+    type:'line',
+    data:{labels:anos,datasets:[
+      {label:'Afetados',data:afet,borderColor:'#7c3aed',borderWidth:2.5,backgroundColor:grad,fill:true,pointRadius:4,tension:.3},
+      {label:'Mortos',data:mort,borderColor:'#ff4757',borderWidth:2,backgroundColor:'transparent',fill:false,pointRadius:4,tension:.3}
+    ]},
+    options:{...baseOpts({x:{ticks:{maxRotation:45,font:{size:9}}},
+      y:{ticks:{callback:v=>fmt(v),font:C.font}},
+      root:{plugins:{legend:{display:true,position:'top',labels:{color:C.muted,font:{size:9},padding:12,boxWidth:10}}}}})
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// EXTREMOS TABLE
+// ═══════════════════════════════════════════════════════════════════
+function renderExtremos(){
+  const tb=document.getElementById('tblExtremos');
+  tb.innerHTML=DB.extremos.map(e=>`<tr>
+    <td>${e.data}</td><td><b>${e.municipio}</b></td><td>${e.uf}</td>
+    <td><span style="font-size:.7rem;background:rgba(255,71,87,.15);color:#ff4757;padding:2px 7px;border-radius:4px">${e.tipo_desastre}</span></td>
+    <td style="color:#00d4ff">${e.chuva_acumulada_mm} mm</td>
+    <td style="color:#ff4757;font-weight:700">${fmt(e.mortos)}</td>
+    <td>${fmt(e.desabrigados)}</td>
+    <td style="color:#7c3aed;font-weight:700">${fmt(e.pessoas_afetadas)}</td>
+  </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MAP (Canvas 2D — Brazil simplified)
+// ═══════════════════════════════════════════════════════════════════
+function renderMap(){
+  const show=document.getElementById('chkMapa').checked;
+  document.getElementById('mapDiv').style.display=show?'block':'none';
+  if(!show)return;
+
+  const canvas=document.getElementById('mapCanvas');
+  const div=document.getElementById('mapDiv');
+  canvas.width=div.clientWidth||800;
+  canvas.height=div.clientHeight||440;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width, H=canvas.height;
+
+  // Brazil lat/lon bounds
+  const LAT_MIN=-33.8, LAT_MAX=5.3, LON_MIN=-73.9, LON_MAX=-28.8;
+  function proj(lat,lon){
+    const x=(lon-LON_MIN)/(LON_MAX-LON_MIN)*W;
+    const y=(1-(lat-LAT_MIN)/(LAT_MAX-LAT_MIN))*H;
+    return[x,y];
+  }
+
+  // Background gradient
+  const bg=ctx.createRadialGradient(W*.3,H*.4,0,W*.5,H*.5,W*.7);
+  bg.addColorStop(0,'rgba(0,212,255,.04)'); bg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle='#0d1120'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+
+  // Grid lines
+  ctx.strokeStyle='rgba(255,255,255,0.04)'; ctx.lineWidth=1;
+  for(let lat=-30;lat<=5;lat+=5){
+    const [x1,y1]=proj(lat,LON_MIN), [x2,y2]=proj(lat,LON_MAX);
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,.18)'; ctx.font='9px DM Sans';
+    ctx.fillText(lat+'°',4,y1-2);
+  }
+  for(let lon=-70;lon<=-30;lon+=10){
+    const [x1,y1]=proj(LAT_MIN,lon), [x2,y2]=proj(LAT_MAX,lon);
+    ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,.18)'; ctx.font='9px DM Sans';
+    ctx.fillText(lon+'°',x1+2,H-4);
+  }
+
+  // Compute ranges for scaling
+  const rows=getFiltered();
+  const totalGeral=DB.anomes.reduce((s,r)=>s+r.chuva,0);
+  const totalPeriodo=rows.reduce((s,r)=>s+r.chuva,0);
+  const ratio=totalGeral?totalPeriodo/totalGeral:1;
+  const muns=DB.municipios.map(m=>({...m,chuva:m.chuva*ratio}));
+  const maxChuva=Math.max(...muns.map(m=>m.chuva));
+  const maxAfet=Math.max(...muns.map(m=>m.afetados))||1;
+
+  // Disaster dots (red, behind)
+  muns.filter(m=>m.n>0).forEach(m=>{
+    const [x,y]=proj(m.lat,m.lon);
+    const r=4+Math.sqrt(m.afetados/maxAfet)*18;
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,71,87,${0.15+m.afetados/maxAfet*0.4})`;
+    ctx.fill();
+    ctx.strokeStyle='rgba(255,71,87,.4)'; ctx.lineWidth=1; ctx.stroke();
+  });
+
+  // Rain dots (cyan, front)
+  muns.forEach(m=>{
+    const [x,y]=proj(m.lat,m.lon);
+    const norm=m.chuva/maxChuva;
+    const r=5+norm*18;
+    // glow
+    const g=ctx.createRadialGradient(x,y,0,x,y,r*1.8);
+    g.addColorStop(0,`rgba(0,212,255,${norm*.5})`); g.addColorStop(1,'rgba(0,212,255,0)');
+    ctx.beginPath(); ctx.arc(x,y,r*1.8,0,Math.PI*2); ctx.fillStyle=g; ctx.fill();
+    // dot
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(0,212,255,${0.5+norm*.4})`;
+    ctx.fill();
+    ctx.strokeStyle='rgba(0,212,255,.7)'; ctx.lineWidth=1; ctx.stroke();
+    // label
+    if(norm>.5){
+      ctx.fillStyle='rgba(255,255,255,.8)'; ctx.font='bold 9px DM Sans';
+      ctx.fillText(m.municipio,x+r+3,y+3);
+    }
+  });
+
+  // Legend
+  ctx.fillStyle='rgba(13,17,32,.85)'; ctx.strokeStyle='rgba(0,212,255,.15)';
+  ctx.lineWidth=1; ctx.beginPath(); ctx.roundRect(12,H-72,160,58,8); ctx.fill(); ctx.stroke();
+  ctx.font='9px DM Sans';
+  ctx.fillStyle='rgba(0,212,255,.8)'; ctx.beginPath(); ctx.arc(26,H-52,5,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#9aa5be'; ctx.fillText('Estação meteorológica',36,H-49);
+  ctx.fillStyle='rgba(255,71,87,.7)'; ctx.beginPath(); ctx.arc(26,H-33,5,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#9aa5be'; ctx.fillText('Evento de desastre',36,H-30);
+  ctx.fillStyle='rgba(255,255,255,.25)'; ctx.fillText('Tamanho = intensidade',26,H-14);
+
+  // Tooltip on hover
+  const tip=document.getElementById('mapTip');
+  canvas.onmousemove=function(e){
+    const rect=canvas.getBoundingClientRect();
+    const mx=(e.clientX-rect.left)*(W/rect.width);
+    const my=(e.clientY-rect.top)*(H/rect.height);
+    let hit=null, minD=999;
+    muns.forEach(m=>{
+      const [x,y]=proj(m.lat,m.lon);
+      const d=Math.hypot(mx-x,my-y);
+      if(d<24&&d<minD){minD=d;hit=m;}
+    });
+    if(hit){
+      tip.style.opacity='1';
+      tip.style.left=(e.clientX-rect.left+14)+'px';
+      tip.style.top=(e.clientY-rect.top-10)+'px';
+      tip.innerHTML=`<b>${hit.municipio} (${hit.uf})</b><br>
+        🌧️ Chuva: ${fmtMM(hit.chuva)} mm<br>
+        ⚠️ Desastres: ${hit.n}<br>
+        💀 Mortos: ${fmt(hit.mortos)}<br>
+        👥 Afetados: ${fmt(hit.afetados)}`;
+    } else {
+      tip.style.opacity='0';
+    }
+  };
+  canvas.onmouseleave=()=>tip.style.opacity='0';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SPLASH → DASHBOARD
+// ═══════════════════════════════════════════════════════════════════
+function enterDashboard(){
+  document.getElementById('splash').classList.add('out');
+  setTimeout(()=>{
+    document.getElementById('splash').style.display='none';
+    document.getElementById('app').style.display='flex';
+    renderAll();
+  },500);
+}
+
+function scrollTo(id){
+  document.getElementById(id).scrollIntoView({behavior:'smooth',block:'start'});
+  document.querySelectorAll('.sb-nav-btn').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════════════════════════
+window.addEventListener('load',()=>{
+  // Preenche splash stats
+  document.getElementById('sp-reg').textContent=fmt(DB.totais.registros);
+  document.getElementById('sp-dis').textContent=fmt(DB.totais.desastres);
+  document.getElementById('sp-aff').textContent=fmt(DB.totais.afetados);
+  initFilters();
+  document.getElementById('loading').classList.add('hidden');
+});
+</script>
+</body>
+</html>
